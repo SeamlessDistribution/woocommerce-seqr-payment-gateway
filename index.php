@@ -21,23 +21,42 @@ function woocommerce_seqr_init()
         {
 
             $this ->id = 'SEQR';
-            $this ->medthod_title = __('SEQR', 'woocommerce');;
-            // $this->method_description = '';
-            // $this->icon = 'http://...'; 
+            $this ->medthod_title = __('SEQR', 'seqr');
             $this->has_fields = false;
+            $this->order_button_text = __('Pay with SEQR', 'seqr');
+            $this->notify_url = WC()->api_request_url('WC_Gateway_SEQR');
+            $this->icon = apply_filters('woocommerce_seqr_icon', $this->plugin_url() . '/assets/logo.png');
 
             $this->init_form_fields();
             $this ->init_settings();
 
-            $this ->title = $this ->settings['title'];
-            $this ->description = $this ->settings['description'];
-            $this ->wsdl_url = $this ->settings['wsdl_url'];
-            $this ->terminal_id = $this ->settings['terminal_id'];
-            $this ->terminal_password = $this ->settings['terminal_password'];
+            $this ->title = $this ->get_option('title');
+            $this ->description = $this ->get_option('description');
+            $this ->wsdl_uri = $this ->get_option('wsdl_uri');
+            $this ->terminal_id = $this ->get_option('terminal_id');
+            $this ->terminal_password = $this ->get_option('terminal_password');
+            $this->debug = $this->get_option('debug');
 
+            $this->log = new WC_Logger();
+
+            add_action('woocommerce_api_wc_seqr', array($this, 'check_response'));
+            add_action('woocommerce_receipt_seqr', array($this, 'receipt_page'));
             add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
-            add_action('woocommerce_receipt_seqr', array(&$this, 'receipt_page'));
 
+            $this->log('Settings: ' . json_encode($this->settings));
+
+        }
+
+        function log($message)
+        {
+            if ('yes' == $this->debug) {
+                $this->log->add('seqr', $message);
+            }
+        }
+
+        function plugin_url()
+        {
+            return untrailingslashit(plugins_url('/', __FILE__));
         }
 
         function init_form_fields()
@@ -54,34 +73,43 @@ function woocommerce_seqr_init()
                     'type' => 'text',
                     'description' => __('This controls the title which the user sees during checkout.', 'seqr'),
                     'default' => __('SEQR Mobile Payment', 'seqr'),
-                    'desc_tip' => true,
+                    'desc_tip' => true
                 ),
                 'description' => array(
                     'title' => __('Description', 'seqr'),
                     'type' => 'textarea',
-                    'default' => __('Pay securely with your mobile phone.', 'seqr'),
                     'description' => __('This controls the description which the user sees during checkout.', 'seqr'),
+                    'default' => __('Pay securely with your mobile phone.', 'seqr'),
+                    'desc_tip' => true
                 ),
-                'wsdl_url' => array(
-                    'title' => __('WSDL URL', 'seqr'),
+                'wsdl_uri' => array(
+                    'title' => __('WSDL URI', 'seqr'),
                     'type' => 'text',
-                    'description' => __('WSDL URL.', 'seqr'),
-                    'default' => '',
-                    'desc_tip' => true,
+                    'description' => __('URI of the WSDL file', 'seqr'),
+                    'default' => 'https://extdev4.seqr.se/extclientproxy/service/v2?wsdl',
+                    'desc_tip' => true
                 ),
                 'terminal_id' => array(
                     'title' => __('Terminal ID', 'seqr'),
                     'type' => 'text',
                     'description' => __('Terminal ID.', 'seqr'),
                     'default' => '',
-                    'desc_tip' => true,
+                    'desc_tip' => true
                 ),
                 'terminal_password' => array(
                     'title' => __('Terminal Password', 'seqr'),
                     'type' => 'text',
                     'description' => __('Terminal Password.', 'seqr'),
                     'default' => '',
-                    'desc_tip' => true,
+                    'desc_tip' => true
+                ),
+                'debug' => array(
+                    'title' => __('Debug Log', 'seqr'),
+                    'type' => 'checkbox',
+                    'label' => __('Enable logging', 'seqr'),
+                    'description' => sprintf(__('Log SEQR events, such as callback requests, inside <code>woocommerce/logs/seqr-%s.txt</code>', 'seqr'), sanitize_file_name(wp_hash('seqr'))),
+                    'default' => 'no',
+                    'desc_tip' => false
                 )
             );
         }
@@ -117,6 +145,7 @@ function woocommerce_seqr_init()
          **/
         public function generate_seqr_form($order_id)
         {
+            log('generate_seqr_form for ' . $order_id);
             return "QR code HERE!";
         }
 
@@ -125,29 +154,21 @@ function woocommerce_seqr_init()
          **/
         function process_payment($order_id)
         {
-            global $woocommerce;
             $order = new WC_Order($order_id);
-            // Mark as on-hold (we're awaiting the cheque)
-            $order->update_status('on-hold', __('Awaiting SEQR payment', 'seqr'));
-            // Reduce stock levels
-            $order->reduce_order_stock();
-            // Remove cart
-            $woocommerce->cart->empty_cart();
-            // Return thankyou redirect
+            log('redirect = ' . $order->get_checkout_payment_url(true));
             return array(
                 'result' => 'success',
-                'redirect' => $this->get_return_url($order)
+                'redirect' => $order->get_checkout_payment_url(true)
             );
         }
     }
-
 
     /**
      * Add the Gateway to WooCommerce
      **/
     function woocommerce_add_seqr_gateway($methods)
     {
-        $methods[] = 'WC_SEQR';
+        $methods[] = 'WC_SEQR_Payment_Gateway';
         return $methods;
     }
 
