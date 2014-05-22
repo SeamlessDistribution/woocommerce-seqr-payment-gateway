@@ -8,10 +8,11 @@ Author: Erik Hedenström
 Author URI: http://se.linkedin.com/in/ehedenst
 */
 
-add_action('plugins_loaded', 'woocommerce_seqr_init', 0);
+add_action('plugins_loaded', 'woocommerce_seqr_init');
 
 function woocommerce_seqr_init()
 {
+
     if (!class_exists('WC_Payment_Gateway')) return;
 
     class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
@@ -20,30 +21,34 @@ function woocommerce_seqr_init()
         public function __construct()
         {
 
-            $this ->id = 'SEQR';
-            $this ->medthod_title = __('SEQR', 'seqr');
+            $this->id = 'SEQR';
+            $this->medthod_title = __('SEQR', 'seqr');
             $this->has_fields = false;
             $this->order_button_text = __('Pay with SEQR', 'seqr');
-            $this->notify_url = WC()->api_request_url('WC_Gateway_SEQR');
             $this->icon = apply_filters('woocommerce_seqr_icon', $this->plugin_url() . '/assets/logo.png');
 
             $this->init_form_fields();
-            $this ->init_settings();
+            $this->init_settings();
 
-            $this ->title = $this ->get_option('title');
-            $this ->description = $this ->get_option('description');
-            $this ->wsdl_uri = $this ->get_option('wsdl_uri');
-            $this ->terminal_id = $this ->get_option('terminal_id');
-            $this ->terminal_password = $this ->get_option('terminal_password');
+            $this->title = $this ->get_option('title');
+            $this->description = $this ->get_option('description');
+            $this->wsdl_uri = $this ->get_option('wsdl_uri');
+            $this->terminal_id = $this ->get_option('terminal_id');
+            $this->terminal_password = $this ->get_option('terminal_password');
+            $this->callback_url = WC()->api_request_url(get_class($this));
             $this->debug = $this->get_option('debug');
 
             $this->log = new WC_Logger();
 
-            add_action('woocommerce_api_wc_seqr', array($this, 'check_response'));
-            add_action('woocommerce_receipt_seqr', array($this, 'receipt_page'));
+//            add_action('woocommerce_receipt_seqr', array($this, 'receipt_page'));
             add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
 
+            $this->log('Callback URL: ' . $this->callback_url);
             $this->log('Settings: ' . json_encode($this->settings));
+
+            // Payment listener/API hooks and actions
+            add_action('woocommerce_api_' . strtolower(get_class($this)), array($this, 'validate_callback'));
+            add_action('valid-seqr-callback', array($this, 'process_callback'));
 
         }
 
@@ -98,7 +103,7 @@ function woocommerce_seqr_init()
                 ),
                 'terminal_password' => array(
                     'title' => __('Terminal Password', 'seqr'),
-                    'type' => 'text',
+                    'type' => 'password',
                     'description' => __('Terminal Password.', 'seqr'),
                     'default' => '',
                     'desc_tip' => true
@@ -161,6 +166,30 @@ function woocommerce_seqr_init()
                 'redirect' => $order->get_checkout_payment_url(true)
             );
         }
+
+        /**
+         * Validate SEQR Callback
+         **/
+        function validate_callback()
+        {
+            @ob_clean();
+            $request = !empty($_POST) ? $_POST : false;
+            if ($request) {
+                header('HTTP/1.1 200 OK');
+                do_action("valid-seqr-callback", $request);
+            } else {
+                wp_die("Malformed callback", "SEQR", array('response' => 400));
+            }
+        }
+
+        /**
+         * Process SEQR Callback
+         */
+        function process_callback($request)
+        {
+            $this->log(json_encode($request));
+        }
+
     }
 
     /**
@@ -173,6 +202,7 @@ function woocommerce_seqr_init()
     }
 
     add_filter('woocommerce_payment_gateways', 'woocommerce_add_seqr_gateway');
+
 }
 
 ?>
