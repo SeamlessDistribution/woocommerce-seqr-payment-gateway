@@ -21,11 +21,12 @@ function woocommerce_seqr_init()
         public function __construct()
         {
 
-            $this->id = 'SEQR';
+            $this->id = 'seqr';
             $this->medthod_title = __('SEQR', 'seqr');
             $this->has_fields = false;
             $this->order_button_text = __('Pay with SEQR', 'seqr');
             $this->icon = apply_filters('woocommerce_seqr_icon', $this->plugin_url() . '/assets/logo.png');
+            $this->javascript = apply_filters('woocommerce_seqr_icon', $this->plugin_url() . '/assets/seqr.js');
 
             $this->init_form_fields();
             $this->init_settings();
@@ -40,15 +41,13 @@ function woocommerce_seqr_init()
 
             $this->log = new WC_Logger();
 
-//            add_action('woocommerce_receipt_seqr', array($this, 'receipt_page'));
+            add_action('woocommerce_receipt_seqr', array($this, 'receipt_page'));
+            add_action('woocommerce_thankyou_cod', array($this, 'thankyou_page'));
             add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
 
-            $this->log('Callback URL: ' . $this->callback_url);
-            $this->log('Settings: ' . json_encode($this->settings));
-
             // Payment listener/API hooks and actions
-            add_action('woocommerce_api_' . strtolower(get_class($this)), array($this, 'validate_callback'));
-            add_action('valid-seqr-callback', array($this, 'process_callback'));
+            add_action('woocommerce_api_' . strtolower(get_class($this)), array($this, 'process_callback'));
+            add_action('seqr-payment-status', array($this, 'process_payment_status'));
 
         }
 
@@ -91,7 +90,7 @@ function woocommerce_seqr_init()
                     'title' => __('WSDL URI', 'seqr'),
                     'type' => 'text',
                     'description' => __('URI of the WSDL file', 'seqr'),
-                    'default' => 'https://extdev4.seqr.se/extclientproxy/service/v2?wsdl',
+                    'default' => 'https://extdev.seqr.com/extclientproxy/service/v2?wsdl',
                     'desc_tip' => true
                 ),
                 'terminal_id' => array(
@@ -139,19 +138,33 @@ function woocommerce_seqr_init()
         /**
          * Receipt Page
          **/
-        function receipt_page($order)
+        function receipt_page($order_id)
         {
-            echo '<p>' . __('Thank you for your order, please click the button below to pay with SEQR.', 'seqr') . '</p>';
-            echo $this ->generate_seqr_form($order);
+            $order = new WC_Order($order_id);
+            $result = $this->send_invoice($order);
+            $result->order_id = $order_id;
+            if ($result->resultCode == 0) {
+                echo $this->generate_seqr_form($result);
+            } else {
+                $this->log(json_encode($result));
+                echo '<h3>' . __('SEQR Payment Failed', 'seqr') . '</h3><p><pre>' . __($result->resultDescription, 'seqr') . '</pre>';
+            }
+        }
+
+        /**
+         * Output for the order received page.
+         */
+        public function thankyou_page()
+        {
+            echo "Jipppeee";
         }
 
         /**
          * Generate SEQR form
          **/
-        public function generate_seqr_form($order_id)
+        public function generate_seqr_form($result)
         {
-            log('generate_seqr_form for ' . $order_id);
-            return "QR code HERE!";
+            return '<script id="seqr_js" src="' . $this->javascript . '#!invoiceReference=' . $result->invoiceReference . '&orderId=' . $result->order_id . '&callbackUrl=' . $this->callback_url . '"></script><img id="seqr_qr" src="https://chart.googleapis.com/chart?chs=210x210&cht=qr&chld=M|0&chl=HTTP%3A%2F%2FSEQR.SE%2FR' . $result->invoiceReference . '">';
         }
 
         /**
@@ -160,34 +173,149 @@ function woocommerce_seqr_init()
         function process_payment($order_id)
         {
             $order = new WC_Order($order_id);
-            log('redirect = ' . $order->get_checkout_payment_url(true));
             return array(
                 'result' => 'success',
                 'redirect' => $order->get_checkout_payment_url(true)
             );
         }
 
-        /**
-         * Validate SEQR Callback
-         **/
-        function validate_callback()
+        function process_callback()
         {
             @ob_clean();
-            $request = !empty($_POST) ? $_POST : false;
-            if ($request) {
+            $action = $_REQUEST['action'];
+            if ($action == "status") {
                 header('HTTP/1.1 200 OK');
-                do_action("valid-seqr-callback", $request);
+                $result = $this->get_payment_status($_REQUEST['invoiceReference']);
+                $result->invoiceReference = $_REQUEST['invoiceReference'];
+                $result->orderId = $_REQUEST['orderId'];
+                if ($result->status == "PAID") {
+                    $order = new WC_Order($result->orderId);
+                    $result->returnUrl = $this->get_return_url($order);
+                }
+                do_action("seqr-payment-status", $result);
+                echo json_encode($result);
+                @ob_flush();
             } else {
                 wp_die("Malformed callback", "SEQR", array('response' => 400));
             }
         }
 
         /**
-         * Process SEQR Callback
+         * Process SEQR Payment Status
          */
-        function process_callback($request)
+        function process_payment_status($result)
         {
-            $this->log(json_encode($request));
+            $this->log('process_payment_status:' . json_encode($result));
+        }
+
+        function add_invoice_row(&$invoiceRows, $label, $quantity, $currency, $value)
+        {
+            $invoiceRow =
+                array(
+                    "itemDescription" => $label,
+                    "itemTotalAmount" =>
+                        array(
+                            "currency" => $currency,
+                            "value" => $value
+                        )
+                );
+            if ($quantity > 0) {
+                $invoiceRow["itemQuantity"] = $quantity;
+            }
+            array_push($invoiceRows, $invoiceRow);
+        }
+
+        /**
+         * Send Invoice
+         */
+        function send_invoice($order)
+        {
+
+            $invoiceRows = array();
+            $inc_tax = get_option('woocommerce_prices_include_tax') == 'yes';
+            $currency = $order->get_order_currency();
+
+            // Cart Contents
+            foreach ($order->get_items() as $item) {
+                if ($item['qty']) {
+                    $item_name = $item['name'];
+                    $item_meta = new WC_Order_Item_Meta($item['item_meta']);
+                    if ($meta = $item_meta->display(true, true)) {
+                        $item_name .= ' ( ' . $meta . ' )';
+                    }
+                    $this->add_invoice_row($invoiceRows, $item_name, $item['qty'], $currency, $order->get_line_subtotal($item, $inc_tax, true));
+                }
+            }
+
+            if ($order->get_cart_discount() > 0) {
+                $this->add_invoice_row($invoiceRows, __('Cart Discount:', 'woocommerce'), 0, $currency, -1 * $order->get_cart_discount());
+            }
+
+            if ($order->get_total_shipping() > 0) {
+                $this->add_invoice_row($invoiceRows, __('Shipping:', 'woocommerce'), 0, $currency, $order->get_total_shipping());
+            }
+
+            if ($order->get_order_discount() > 0) {
+                $this->add_invoice_row($invoiceRows, __('Order Discount:', 'woocommerce'), 0, $currency, -1 * $order->get_order_discount());
+            }
+
+            foreach ($order->get_tax_totals() as $tax) {
+                if ($tax->amount > 0) {
+                    $this->add_invoice_row($invoiceRows, $tax->label, 0, $currency, round($tax->amount, 2));
+                }
+            }
+
+            $invoice = array(
+                "acknowledgmentMode" => "NO_ACKNOWLEDGMENT",
+                "clientInvoiceId" => $order->get_order_number(),
+                "title" => $order->get_order_number(),
+                "totalAmount" =>
+                    array(
+                        "currency" => $order->get_order_currency(),
+                        "value" => $order->get_total()
+                    ),
+                "invoiceRows" => $invoiceRows
+            );
+
+            $params = array(
+                "context" => array(
+                    "initiatorPrincipalId" => array("id" => $this->terminal_id, "type" => "TERMINALID"),
+                    "password" => $this->terminal_password,
+                    "clientRequestTimeout" => "0"
+                ),
+                "invoice" => $invoice
+            );
+
+
+            $this->log('SOAP Request: ' . json_encode($params));
+            $soapClient = new SoapClient($this->wsdl_uri);
+            $result = $soapClient->sendInvoice($params);
+            $this->log('SOAP Response: ' . json_encode($result));
+
+            return $result->return;
+
+        }
+
+        function get_payment_status($invoiceReference)
+        {
+
+            $params = array(
+                "context" => array(
+                    "initiatorPrincipalId" => array("id" => $this->terminal_id, "type" => "TERMINALID"),
+                    "password" => $this->terminal_password,
+                    "clientRequestTimeout" => "0"
+                ),
+                "invoiceReference" => $invoiceReference,
+                "invoiceVersion" => 0
+            );
+
+            $this->log('SOAP Request: ' . json_encode($params));
+            $soapClient = new SoapClient($this->wsdl_uri);
+            $result = $soapClient->getPaymentStatus($params);
+            $this->log('SOAP Response: ' . json_encode($result));
+
+            return $result->return;
+
         }
 
     }
