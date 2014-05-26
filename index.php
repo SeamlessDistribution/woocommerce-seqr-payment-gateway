@@ -26,7 +26,7 @@ function woocommerce_seqr_init()
             $this->has_fields = false;
             $this->order_button_text = __('Pay with SEQR', 'seqr');
             $this->icon = apply_filters('woocommerce_seqr_icon', $this->plugin_url() . '/assets/logo.png');
-            $this->javascript = apply_filters('woocommerce_seqr_icon', $this->plugin_url() . '/assets/seqr.js');
+            $this->javascript = apply_filters('woocommerce_seqr_script', $this->plugin_url() . '/assets/seqr.js');
 
             $this->init_form_fields();
             $this->init_settings();
@@ -42,7 +42,7 @@ function woocommerce_seqr_init()
             $this->log = new WC_Logger();
 
             add_action('woocommerce_receipt_seqr', array($this, 'receipt_page'));
-            add_action('woocommerce_thankyou_cod', array($this, 'thankyou_page'));
+            add_action('woocommerce_thankyou_seqr', array($this, 'thankyou_page'));
             add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
 
             // Payment listener/API hooks and actions
@@ -144,27 +144,19 @@ function woocommerce_seqr_init()
             $result = $this->send_invoice($order);
             $result->order_id = $order_id;
             if ($result->resultCode == 0) {
-                echo $this->generate_seqr_form($result);
+                echo '<script id="seqr_js" src="' . $this->javascript . '#!invoiceReference=' . $result->invoiceReference . '&orderId=' . $result->order_id . '&callbackUrl=' . $this->callback_url . '"></script><p><img src="' . apply_filters('woocommerce_seqr_icon', $this->plugin_url() . '/assets/logo_wide.png') . '" width="195" height="36"/></p><p><img id="seqr_qr" src="https://chart.googleapis.com/chart?chs=195x195&cht=qr&chld=M|0&chl=HTTP%3A%2F%2FSEQR.SE%2FR' . $result->invoiceReference . '" width="195" height="195"/></p>';
             } else {
                 $this->log(json_encode($result));
-                echo '<h3>' . __('SEQR Payment Failed', 'seqr') . '</h3><p><pre>' . __($result->resultDescription, 'seqr') . '</pre>';
+                echo '<h3>' . __('SEQR Payment Failed', 'seqr') . '</h3><p><pre>' . __($result->resultDescription, 'seqr') . '</pre></p>';
             }
         }
 
         /**
-         * Output for the order received page.
+         * Order Received Page.
          */
         public function thankyou_page()
         {
-            echo "Jipppeee";
-        }
-
-        /**
-         * Generate SEQR form
-         **/
-        public function generate_seqr_form($result)
-        {
-            return '<script id="seqr_js" src="' . $this->javascript . '#!invoiceReference=' . $result->invoiceReference . '&orderId=' . $result->order_id . '&callbackUrl=' . $this->callback_url . '"></script><img id="seqr_qr" src="https://chart.googleapis.com/chart?chs=210x210&cht=qr&chld=M|0&chl=HTTP%3A%2F%2FSEQR.SE%2FR' . $result->invoiceReference . '">';
+            echo '<p><img src="' . apply_filters('woocommerce_seqr_icon', $this->plugin_url() . '/assets/logo_wide.png') . '" width="195" height="36"/></p>';
         }
 
         /**
