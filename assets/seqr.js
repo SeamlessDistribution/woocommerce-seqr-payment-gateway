@@ -50,7 +50,7 @@ if (!window.console) {
             json = json.substring(0, json.length - 1); // Ugly hack to handle extra character from action
             var data = JSON.parse(json);
             if (data.status == 'pending') {
-                window.setTimeout(pollInvoiceStatus, 200);
+                window.setTimeout(pollInvoiceStatus, 1000);
             } else if (data.url) {
                 document.location = data.url;
             }
@@ -66,6 +66,7 @@ if (!window.console) {
 
     function initialize() {
         parseScriptArgs();
+        console.log(args);
         window.setTimeout(pollInvoiceStatus, 1000);
     }
 
