@@ -8,6 +8,8 @@ Author: Erik Hedenström
 Author URI: http://se.linkedin.com/in/ehedenst
 */
 
+require_once 'Mobile_Detect.php';
+
 add_action('plugins_loaded', 'woocommerce_seqr_init');
 
 function woocommerce_seqr_init()
@@ -133,7 +135,7 @@ function woocommerce_seqr_init()
             echo '<h3>' . __('SEQR Payment Gateway', 'seqr') . '</h3>';
             echo '<p>' . __('SEQR is the premiere solution for mobile payments') . '</p>';
             echo '<table class="form-table">';
-            $this ->generate_settings_html();
+            $this->generate_settings_html();
             echo '</table>';
         }
 
@@ -142,7 +144,7 @@ function woocommerce_seqr_init()
          **/
         function payment_fields()
         {
-            if ($this ->description) echo wpautop(wptexturize($this ->description));
+            if ($this ->description) echo wpautop(wptexturize($this->description));
         }
 
         /**
@@ -193,11 +195,30 @@ function woocommerce_seqr_init()
          **/
         function process_payment($order_id)
         {
+            $detect = new Mobile_Detect();
             $order = new WC_Order($order_id);
-            return array(
-                'result' => 'success',
-                'redirect' => $order->get_checkout_payment_url(true)
-            );
+            if ($detect->isMobile()) {
+                $invoiceReference = get_post_meta($order->id, 'SEQR Invoice Reference', true);
+                if (!$invoiceReference) {
+                    $result = $this->send_invoice($order);
+                    if ($result->resultCode == 0) {
+                        $invoiceReference = wc_clean($result->invoiceReference);
+                    }
+                }
+                if ($invoiceReference) {
+                    return array(
+                        'result' => 'success',
+                        'redirect' => 'SEQR-DEMO://SEQR.SE/R' . $invoiceReference
+                    );
+                } else {
+                    // TODO: Handle error
+                }
+            } else {
+                return array(
+                    'result' => 'success',
+                    'redirect' => $order->get_checkout_payment_url(true)
+                );
+            }
         }
 
         function process_callback()
@@ -209,15 +230,14 @@ function woocommerce_seqr_init()
                     if ($order->id) {
                         $invoiceReference = get_post_meta($order->id, 'SEQR Invoice Reference', true);
                         if ('yes' == $this->poll) {
-                            $this->update_order_status($invoiceReference, $order);
-                        }
-                        if ($order->status != 'pending') {
-                            WC()->cart->empty_cart();
+                            $url = $this->update_order_status($invoiceReference, $order);
+                        } else {
+                            $url = $order->get_checkout_order_received_url();
                         }
                         $response =
                             array(
                                 'status' => $order->status,
-                                'url' => $order->get_checkout_order_received_url()
+                                'url' => $url
                             );
                         @ob_clean();
                         header('HTTP/1.1 200 OK');
@@ -232,11 +252,11 @@ function woocommerce_seqr_init()
                     if ('pending' != $order->status || !isset($_POST['invoiceReference'])) {
                         return false;
                     }
-                    if (isset($_POST['msisdn'])) {
-                        update_post_meta($order->id, 'SEQR MSISDN', wc_clean($_POST['msisdn']));
-                    }
                     $invoiceReference = get_post_meta($order->id, 'SEQR Invoice Reference', true);
                     if ($invoiceReference == $_POST['invoiceReference']) {
+                        if (isset($_POST['msisdn'])) {
+                            add_post_meta($order->id, 'SEQR MSISDN', wc_clean($_POST['msisdn']), true);
+                        }
                         $this->update_order_status($invoiceReference, $order);
                         return true;
                     } else {
@@ -253,19 +273,17 @@ function woocommerce_seqr_init()
             $result = $this->get_payment_status($invoiceReference);
             switch ($result->status) {
                 case 'PAID' :
-                    $order->add_order_note(__('SEQR payment completed', 'seqr'));
-                    $order->reduce_order_stock();
+                    WC()->cart->empty_cart();
                     $order->payment_complete();
-                    break;
-                case 'ISSUED' :
-                    break;
+                    add_post_meta($order->id, 'SEQR Payment Reference', wc_clean($result->receipt->paymentReference), true);
+                    return $order->get_checkout_order_received_url();
                 case 'CANCELED' :
-                    //$order->update_status('cancelled', __('SEQR payment cancelled', 'seqr'));
-                    break;
+                    WC()->cart->empty_cart();
+                    $order->update_status('cancelled', __('SEQR payment cancelled', 'seqr'));
+                    return $order->get_cancel_order_url();
                 default:
-                    break;
+                    return $order->get_checkout_order_received_url();
             }
-            $this->log(json_encode($order));
         }
 
         function add_invoice_row(&$invoiceRows, $label, $quantity, $currency, $value)
@@ -336,7 +354,7 @@ function woocommerce_seqr_init()
                         "currency" => $order->get_order_currency(),
                         "value" => $order->get_total()
                     ),
-                "backURL" => $this->callback_url,
+                "backURL" => $this->callback_url
             );
 
             if ("no" == $this->poll) {
@@ -344,62 +362,45 @@ function woocommerce_seqr_init()
             }
 
             $params = array(
-                "context" => array(
-                    "initiatorPrincipalId" => array("id" => $this->terminal_id, "type" => "TERMINALID"),
-                    "password" => $this->terminal_password,
-                    "clientRequestTimeout" => "0"
-                ),
                 "invoice" => $invoice
             );
-
-
-            $this->log('SOAP Request: ' . json_encode($params));
-            $soapClient = new SoapClient($this->wsdl_uri);
-            $result = $soapClient->sendInvoice($params);
-            $this->log('SOAP Response: ' . json_encode($result));
-
-            return $result->return;
+            return $this->soap_call('sendInvoice', $params);
 
         }
 
         function cancel_invoice($invoiceReference)
         {
-
             $params = array(
-                "context" => array(
-                    "initiatorPrincipalId" => array("id" => $this->terminal_id, "type" => "TERMINALID"),
-                    "password" => $this->terminal_password,
-                    "clientRequestTimeout" => "0"
-                ),
                 "invoiceReference" => $invoiceReference
             );
-
-            $this->log('SOAP Request: ' . json_encode($params));
-            $soapClient = new SoapClient($this->wsdl_uri);
-            $result = $soapClient->cancelInvoice($params);
-            $this->log('SOAP Response: ' . json_encode($result));
-
-            return $result->return;
-
+            return $this->soap_call('cancelInvoice', $params);
         }
 
         function get_payment_status($invoiceReference)
         {
-
             $params = array(
-                "context" => array(
-                    "initiatorPrincipalId" => array("id" => $this->terminal_id, "type" => "TERMINALID"),
-                    "password" => $this->terminal_password,
-                    "clientRequestTimeout" => "0"
-                ),
                 "invoiceReference" => $invoiceReference,
                 "invoiceVersion" => 0
             );
+            return $this->soap_call('getPaymentStatus', $params);
+        }
 
-            $this->log('SOAP Request: ' . json_encode($params));
+        function soap_call($function_name, $params)
+        {
+
+            $params['context'] = array(
+                'initiatorPrincipalId' => array(
+                    'id' => $this->terminal_id,
+                    'type' => 'TERMINALID'
+                ),
+                'password' => $this->terminal_password,
+                'clientRequestTimeout' => '0'
+            );
+
+            $this->log('SOAP Request, ' . $function_name . ' : ' . json_encode($params));
             $soapClient = new SoapClient($this->wsdl_uri);
-            $result = $soapClient->getPaymentStatus($params);
-            $this->log('SOAP Response: ' . json_encode($result));
+            $result = $soapClient->__soapCall($function_name, array($params));
+            $this->log('SOAP Response, ' . $function_name . ' : ' . json_encode($result));
 
             return $result->return;
 

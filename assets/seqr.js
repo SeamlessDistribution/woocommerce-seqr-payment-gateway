@@ -49,6 +49,7 @@ if (!window.console) {
         get(url, function (json) {
             json = json.substring(0, json.length - 1); // Ugly hack to handle extra character from action
             var data = JSON.parse(json);
+            console.log(data);
             if (data.status == 'pending') {
                 window.setTimeout(pollInvoiceStatus, 1000);
             } else if (data.url) {
