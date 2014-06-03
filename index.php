@@ -41,6 +41,7 @@ function woocommerce_seqr_init()
             $this->terminal_password = $this ->get_option('terminal_password');
             $this->poll = $this->get_option('poll');
             $this->debug = $this->get_option('debug');
+            $this->mode = $this->get_option('mode');
 
             $this->log = new WC_Logger();
 
@@ -111,10 +112,22 @@ function woocommerce_seqr_init()
                     'default' => '',
                     'desc_tip' => true
                 ),
+                'mode' => array(
+                    'title' => __('Mode', 'seqr'),
+                    'type' => 'select',
+                    'description' => __('Selecting the mode affects which version of the SEQR app is triggered.', 'seqr'),
+                    'default' => 'seqr-demo',
+                    'options' => array(
+                        'seqr-demo' => __('Demo', 'seqr'),
+                        'seqr-debug' => __('Debug', 'seqr'),
+                        'seqr' => __('Production', 'seqr')
+                    ),
+                    'desc_tip' => true
+                ),
                 'poll' => array(
                     'title' => __('Poll Status', 'seqr'),
                     'type' => 'checkbox',
-                    'label' => __('Poll Status', 'seqr'),
+                    'label' => __('Enable polling', 'seqr'),
                     'description' => sprintf(__('Enable this option if callbacks from SEQR to <code>%s</code> are not possible.', 'seqr'), $this->callback_url),
                     'default' => 'no',
                     'desc_tip' => false
@@ -195,30 +208,26 @@ function woocommerce_seqr_init()
          **/
         function process_payment($order_id)
         {
-            $detect = new Mobile_Detect();
             $order = new WC_Order($order_id);
+            $payment_url = $order->get_checkout_payment_url(true);
+            $detect = new Mobile_Detect();
             if ($detect->isMobile()) {
                 $invoiceReference = get_post_meta($order->id, 'SEQR Invoice Reference', true);
-                if (!$invoiceReference) {
+                if ($invoiceReference) {
+                    $payment_url = $this->mode . '://SEQR.SE/R' . $invoiceReference;
+                } else {
                     $result = $this->send_invoice($order);
                     if ($result->resultCode == 0) {
                         $invoiceReference = wc_clean($result->invoiceReference);
+                        add_post_meta($order->id, 'SEQR Invoice Reference', $invoiceReference, true);
+                        $payment_url = $this->mode . '://SEQR.SE/R' . $invoiceReference;
                     }
                 }
-                if ($invoiceReference) {
-                    return array(
-                        'result' => 'success',
-                        'redirect' => 'SEQR-DEMO://SEQR.SE/R' . $invoiceReference
-                    );
-                } else {
-                    // TODO: Handle error
-                }
-            } else {
-                return array(
-                    'result' => 'success',
-                    'redirect' => $order->get_checkout_payment_url(true)
-                );
             }
+            return array(
+                'result' => 'success',
+                'redirect' => $payment_url
+            );
         }
 
         function process_callback()
@@ -230,18 +239,34 @@ function woocommerce_seqr_init()
                     if ($order->id) {
                         $invoiceReference = get_post_meta($order->id, 'SEQR Invoice Reference', true);
                         if ('yes' == $this->poll) {
-                            $url = $this->update_order_status($invoiceReference, $order);
-                        } else {
-                            $url = $order->get_checkout_order_received_url();
+                            $this->update_order_status($invoiceReference, $order);
                         }
-                        $response =
-                            array(
-                                'status' => $order->status,
-                                'url' => $url
-                            );
+                        switch ($order->status) {
+                            case 'pending' :
+                                $url = $this->callback_url . '?clientInvoiceId=' . urlencode($order->id);
+                                break;
+                            case 'failed' :
+                                $url = $order->get_cancel_order_url();
+                                break;
+                            case 'cancelled' :
+                                $url = $order->get_cancel_order_url();
+                                break;
+                            default :
+                                $url = $order->get_checkout_order_received_url();
+                        }
                         @ob_clean();
                         header('HTTP/1.1 200 OK');
-                        echo json_encode($response);
+                        $detect = new Mobile_Detect();
+                        if ($detect->isMobile()) {
+                            wp_redirect($url);
+                        } else {
+                            $response =
+                                array(
+                                    'status' => $order->status,
+                                    'url' => $url
+                                );
+                            echo json_encode($response);
+                        }
                         @ob_flush();
                         return true;
                     } else {
@@ -276,13 +301,17 @@ function woocommerce_seqr_init()
                     WC()->cart->empty_cart();
                     $order->payment_complete();
                     add_post_meta($order->id, 'SEQR Payment Reference', wc_clean($result->receipt->paymentReference), true);
-                    return $order->get_checkout_order_received_url();
+                    break;
+                case 'FAILED' :
+                    WC()->cart->empty_cart();
+                    $order->update_status('failed', __('SEQR payment failed', 'seqr'));
+                    break;
                 case 'CANCELED' :
                     WC()->cart->empty_cart();
                     $order->update_status('cancelled', __('SEQR payment cancelled', 'seqr'));
-                    return $order->get_cancel_order_url();
+                    break;
                 default:
-                    return $order->get_checkout_order_received_url();
+                    break;
             }
         }
 
@@ -354,7 +383,7 @@ function woocommerce_seqr_init()
                         "currency" => $order->get_order_currency(),
                         "value" => $order->get_total()
                     ),
-                "backURL" => $this->callback_url
+                "backURL" => $this->callback_url . '?clientInvoiceId=' . urlencode($order->id)
             );
 
             if ("no" == $this->poll) {
