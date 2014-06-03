@@ -40,6 +40,7 @@ function woocommerce_seqr_init()
             $this->terminal_id = $this ->get_option('terminal_id');
             $this->terminal_password = $this ->get_option('terminal_password');
             $this->poll = $this->get_option('poll');
+            $this->poll_frequency = intval($this->get_option('poll_frequency', 1000));
             $this->debug = $this->get_option('debug');
             $this->mode = $this->get_option('mode');
 
@@ -132,6 +133,14 @@ function woocommerce_seqr_init()
                     'default' => 'no',
                     'desc_tip' => false
                 ),
+                'poll_frequency' => array(
+                    'title' => __('Poll Frequency', 'seqr'),
+                    'type' => 'text',
+                    'label' => __('milliseconds', 'seqr'),
+                    'description' => __('How often should the checkout page check the payment status.', 'seqr'),
+                    'default' => '1000',
+                    'desc_tip' => false
+                ),
                 'debug' => array(
                     'title' => __('Debug Log', 'seqr'),
                     'type' => 'checkbox',
@@ -146,7 +155,7 @@ function woocommerce_seqr_init()
         public function admin_options()
         {
             echo '<h3>' . __('SEQR Payment Gateway', 'seqr') . '</h3>';
-            echo '<p>' . __('SEQR is the premiere solution for mobile payments') . '</p>';
+            echo '<p>' . __('SEQR is the premiere solution for mobile payments', 'seqr') . '</p>';
             echo '<table class="form-table">';
             $this->generate_settings_html();
             echo '</table>';
@@ -263,7 +272,8 @@ function woocommerce_seqr_init()
                             $response =
                                 array(
                                     'status' => $order->status,
-                                    'url' => $url
+                                    'url' => $url,
+                                    'poll_frequency' => $this->poll_frequency
                                 );
                             echo json_encode($response);
                         }
