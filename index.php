@@ -47,7 +47,6 @@ function woocommerce_seqr_init()
             $this->log = new WC_Logger();
 
             add_action('woocommerce_receipt_seqr', array($this, 'receipt_page'));
-            add_action('woocommerce_thankyou_seqr', array($this, 'thankyou_page'));
             add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
 
             // Payment listener/API hooks and actions
@@ -192,14 +191,6 @@ function woocommerce_seqr_init()
             }
         }
 
-        /**
-         * Order Received Page.
-         */
-        public function thankyou_page()
-        {
-            echo '<p><img src="' . apply_filters('woocommerce_seqr_icon', $this->plugin_url() . '/assets/logo_wide.png') . '" width="195" height="36"/></p>';
-        }
-
         public function resume_order($order_id)
         {
             $order = new WC_Order($order_id);
@@ -241,8 +232,7 @@ function woocommerce_seqr_init()
 
         function process_callback()
         {
-            $method = $_SERVER['REQUEST_METHOD'];
-            switch ($method) {
+            switch ($_SERVER['REQUEST_METHOD']) {
                 case 'GET' :
                     $order = new WC_Order($_GET['clientInvoiceId']);
                     if ($order->id) {
