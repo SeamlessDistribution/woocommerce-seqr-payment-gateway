@@ -1,4 +1,4 @@
-woocommerce-seqr-payment-gateway
-================================
+woocommerce-seqr
+================
 
 WooCommerce SEQR Payment Gateway
