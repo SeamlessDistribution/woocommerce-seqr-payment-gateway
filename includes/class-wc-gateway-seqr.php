@@ -384,6 +384,37 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
 
     }
 
+    function refund_payment($order)
+    {
+        switch ($order->status) {
+            case 'failed' :
+                return false;
+            case 'refunded' :
+                return false;
+            case 'cancelled' :
+                return false;
+            default :
+                $paymentReference = get_post_meta($order->id, 'SEQR Payment Reference', true);
+                if ($paymentReference) {
+                    $params = array(
+                        "ersReference" => $paymentReference,
+                        "invoice" => array(
+                            "title" => __('Refund for order ', 'seqr') . $order->get_order_number(),
+                            "totalAmount" =>
+                                array(
+                                    "currency" => $order->get_order_currency(),
+                                    "value" => $order->get_total()
+                                )
+                        )
+                    );
+                    $result = $this->soap_call('refundPayment', $params);
+                    return true;
+                } else {
+                    return false;
+                }
+        }
+    }
+
     function cancel_invoice($invoiceReference)
     {
         $params = array(
