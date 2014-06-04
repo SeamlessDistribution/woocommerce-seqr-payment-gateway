@@ -255,6 +255,7 @@ function woocommerce_seqr_init()
                         }
                         @ob_clean();
                         header('HTTP/1.1 200 OK');
+                        header('Content-Type: application/json; charset=utf-8');
                         $detect = new Mobile_Detect();
                         if ($detect->isMobile()) {
                             wp_redirect($url);
@@ -267,8 +268,7 @@ function woocommerce_seqr_init()
                                 );
                             echo json_encode($response);
                         }
-                        @ob_flush();
-                        return true;
+                        die();
                     } else {
                         return false;
                     }

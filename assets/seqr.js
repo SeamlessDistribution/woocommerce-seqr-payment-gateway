@@ -47,7 +47,6 @@ if (!window.console) {
     function pollInvoiceStatus() {
         var url = args['callbackUrl'];
         get(url, function (json) {
-            json = json.substring(0, json.length - 1); // Ugly hack to handle extra character from action
             var data = JSON.parse(json);
             var pollFrequency = Math.max(100, Math.min(data.poll_frequency, 5000));
             if (data.status == 'pending') {
