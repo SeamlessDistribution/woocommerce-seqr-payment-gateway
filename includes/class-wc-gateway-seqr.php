@@ -15,7 +15,8 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
         $this->has_fields = false;
         $this->order_button_text = __('Pay with SEQR', 'seqr');
         $this->icon = apply_filters('woocommerce_seqr_icon', $this->plugin_url() . '/assets/logo.png');
-        $this->javascript = apply_filters('woocommerce_seqr_script', $this->plugin_url() . '/assets/woocommerce-seqr.js');
+        $this->javascript = $this->plugin_url() . '/assets/woocommerce-seqr.js';
+        $this->qrcode = $this->plugin_url() . '/qrcode.php';
         $this->callback_url = WC()->api_request_url(get_class($this));
 
         $this->init_form_fields();
@@ -52,7 +53,7 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
 
     function plugin_url()
     {
-        return untrailingslashit(plugins_url('..', __FILE__));
+        return untrailingslashit(plugins_url('woocommerce-seqr'));
     }
 
     function init_form_fields()
@@ -167,14 +168,17 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
             if ($result->resultCode == 0) {
                 $invoiceReference = wc_clean($result->invoiceReference);
                 add_post_meta($order->id, 'SEQR Invoice Reference', $invoiceReference, true);
+                add_post_meta($order->id, 'SEQR Invoice QR Code', $result->invoiceQRCode, true);
             } else {
-                $this->log(json_encode($result));
+                $order->add_order_note(__('SEQR Send invoice failed: ', 'seqr') . __($result->resultDescription, 'seqr'));
                 echo '<h3>' . __('SEQR Payment Failed', 'seqr') . '</h3><p><pre>' . __($result->resultDescription, 'seqr') . '</pre></p>';
             }
         }
         if ($invoiceReference) {
-            $callbackUrl = urlencode($this->callback_url . '?clientInvoiceId=' . $order_id);
-            echo '<script id="seqr_js" src="' . $this->javascript . '#!callbackUrl=' . $callbackUrl . '"></script><p><img src="' . apply_filters('woocommerce_seqr_icon', $this->plugin_url() . '/assets/logo_wide.png') . '" width="195" height="36"/></p><p><img id="seqr_qr" src="https://chart.googleapis.com/chart?chs=195x195&cht=qr&chld=M|0&chl=HTTP%3A%2F%2FSEQR.SE%2FR' . $invoiceReference . '" width="195" height="195"/></p>';
+            $jsUrl = $this->javascript . '#!callbackUrl=' . urlencode($this->callback_url . '?order=' . $order_id);
+            $qrUrl = $this->plugin_url() . '/qrcode.php?order=' . $order_id;
+            echo '<script id="seqr_js" src="' . $jsUrl . '"></script>';
+            echo '<p><img id="seqr_qr" src="' . $qrUrl . '" width="150" height="150"/></p>';
         }
     }
 
@@ -198,7 +202,7 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
         $order = new WC_Order($order_id);
         $payment_url = $order->get_checkout_payment_url(true);
         $detect = new Mobile_Detect();
-        if ($detect->isMobile()) {
+        if ($detect->isMobile() && !$detect->isTablet()) {
             $invoiceReference = get_post_meta($order->id, 'SEQR Invoice Reference', true);
             if ($invoiceReference) {
                 $payment_url = $this->mode . '://SEQR.SE/R' . $invoiceReference;
@@ -208,6 +212,8 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
                     $invoiceReference = wc_clean($result->invoiceReference);
                     add_post_meta($order->id, 'SEQR Invoice Reference', $invoiceReference, true);
                     $payment_url = $this->mode . '://SEQR.SE/R' . $invoiceReference;
+                } else {
+                    $order->add_order_note(__('SEQR Send invoice failed: ', 'seqr') . __($result->resultDescription, 'seqr'));
                 }
             }
         }
@@ -221,7 +227,7 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
     {
         switch ($_SERVER['REQUEST_METHOD']) {
             case 'GET' :
-                $order = new WC_Order($_GET['clientInvoiceId']);
+                $order = new WC_Order($_GET['order']);
                 if ($order->id) {
                     $invoiceReference = get_post_meta($order->id, 'SEQR Invoice Reference', true);
                     if ('yes' == $this->poll) {
@@ -229,7 +235,7 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
                     }
                     switch ($order->status) {
                         case 'pending' :
-                            $url = $this->callback_url . '?clientInvoiceId=' . urlencode($order->id);
+                            $url = $this->callback_url . '?order=' . urlencode($order->id);
                             break;
                         case 'failed' :
                             $url = $order->get_cancel_order_url();
@@ -242,9 +248,8 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
                     }
                     @ob_clean();
                     header('HTTP/1.1 200 OK');
-                    header('Content-Type: application/json; charset=utf-8');
                     $detect = new Mobile_Detect();
-                    if ($detect->isMobile()) {
+                    if ($detect->isMobile() && !$detect->isTablet()) {
                         wp_redirect($url);
                     } else {
                         $response =
@@ -253,9 +258,10 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
                                 'url' => $url,
                                 'poll_frequency' => $this->poll_frequency
                             );
+                        header('Content-Type: application/json; charset=utf-8');
                         echo json_encode($response);
+                        die();
                     }
-                    die();
                 } else {
                     return false;
                 }
@@ -291,11 +297,11 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
                 break;
             case 'FAILED' :
                 WC()->cart->empty_cart();
-                $order->update_status('failed', __('SEQR payment failed', 'seqr'));
+                $order->update_status('failed');
                 break;
             case 'CANCELED' :
                 WC()->cart->empty_cart();
-                $order->update_status('cancelled', __('SEQR payment cancelled', 'seqr'));
+                $order->update_status('cancelled');
                 break;
             default:
                 break;
@@ -370,7 +376,7 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
                     "currency" => $order->get_order_currency(),
                     "value" => $order->get_total()
                 ),
-            "backURL" => $this->callback_url . '?clientInvoiceId=' . urlencode($order->id)
+            "backURL" => $this->callback_url . '?order=' . urlencode($order->id)
         );
 
         if ("no" == $this->poll) {
@@ -382,6 +388,36 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
         );
         return $this->soap_call('sendInvoice', $params);
 
+    }
+
+    function refund_payment($order)
+    {
+        $paymentReference = get_post_meta($order->id, 'SEQR Payment Reference', true);
+        $refundReference = get_post_meta($order->id, 'SEQR Refund Reference', true);
+        if ($paymentReference && !$refundReference) {
+            $current_user = wp_get_current_user();
+            $params = array(
+                "ersReference" => $paymentReference,
+                "invoice" => array(
+                    "title" => __('Refund for order ', 'seqr') . $order->get_order_number(),
+                    "cashierId" => $current_user->display_name,
+                    "totalAmount" =>
+                        array(
+                            "currency" => $order->get_order_currency(),
+                            "value" => $order->get_total()
+                        )
+                )
+            );
+            $result = $this->soap_call('refundPayment', $params);
+            if ($result->resultCode == 0) {
+                $refundReference = wc_clean($result->ersReference);
+                add_post_meta($order->id, 'SEQR Refund Reference', $refundReference, true);
+                $_POST['order_status'] = 'refunded';
+                $order->update_status('refunded');
+            } else {
+                $order->add_order_note(__('SEQR Refund failed: ', 'seqr') . __($result->resultDescription, 'seqr'));
+            }
+        }
     }
 
     function cancel_invoice($invoiceReference)
