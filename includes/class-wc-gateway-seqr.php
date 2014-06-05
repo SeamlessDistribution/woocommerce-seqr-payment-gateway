@@ -170,7 +170,7 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
                 add_post_meta($order->id, 'SEQR Invoice Reference', $invoiceReference, true);
                 add_post_meta($order->id, 'SEQR Invoice QR Code', $result->invoiceQRCode, true);
             } else {
-                $this->log(json_encode($result));
+                $order->add_order_note(__('SEQR Send invoice failed: ', 'seqr') . __($result->resultDescription, 'seqr'));
                 echo '<h3>' . __('SEQR Payment Failed', 'seqr') . '</h3><p><pre>' . __($result->resultDescription, 'seqr') . '</pre></p>';
             }
         }
@@ -178,7 +178,7 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
             $jsUrl = $this->javascript . '#!callbackUrl=' . urlencode($this->callback_url . '?order=' . $order_id);
             $qrUrl = $this->plugin_url() . '/qrcode.php?order=' . $order_id;
             echo '<script id="seqr_js" src="' . $jsUrl . '"></script>';
-            echo '<p><img id="seqr_qr" src="' . $qrUrl . '" width="125" height="125"/></p>';
+            echo '<p><img id="seqr_qr" src="' . $qrUrl . '" width="150" height="150"/></p>';
         }
     }
 
@@ -212,6 +212,8 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
                     $invoiceReference = wc_clean($result->invoiceReference);
                     add_post_meta($order->id, 'SEQR Invoice Reference', $invoiceReference, true);
                     $payment_url = $this->mode . '://SEQR.SE/R' . $invoiceReference;
+                } else {
+                    $order->add_order_note(__('SEQR Send invoice failed: ', 'seqr') . __($result->resultDescription, 'seqr'));
                 }
             }
         }
@@ -246,7 +248,6 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
                     }
                     @ob_clean();
                     header('HTTP/1.1 200 OK');
-                    header('Content-Type: application/json; charset=utf-8');
                     $detect = new Mobile_Detect();
                     if ($detect->isMobile() && !$detect->isTablet()) {
                         wp_redirect($url);
@@ -257,9 +258,10 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
                                 'url' => $url,
                                 'poll_frequency' => $this->poll_frequency
                             );
+                        header('Content-Type: application/json; charset=utf-8');
                         echo json_encode($response);
+                        die();
                     }
-                    die();
                 } else {
                     return false;
                 }
@@ -295,11 +297,11 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
                 break;
             case 'FAILED' :
                 WC()->cart->empty_cart();
-                $order->update_status('failed', __('SEQR payment failed', 'seqr'));
+                $order->update_status('failed');
                 break;
             case 'CANCELED' :
                 WC()->cart->empty_cart();
-                $order->update_status('cancelled', __('SEQR payment cancelled', 'seqr'));
+                $order->update_status('cancelled');
                 break;
             default:
                 break;
@@ -413,7 +415,7 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
                 $_POST['order_status'] = 'refunded';
                 $order->update_status('refunded');
             } else {
-                $order->add_order_note('Refund failed: ' . $result->resultDescription);
+                $order->add_order_note(__('SEQR Refund failed: ', 'seqr') . __($result->resultDescription, 'seqr'));
             }
         }
     }
