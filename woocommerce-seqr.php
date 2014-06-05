@@ -39,7 +39,10 @@ function woocommerce_seqr_init()
     function do_seqr_refund($order)
     {
         $payment_gateway = new WC_SEQR_Payment_Gateway();
-        $payment_gateway->refund_payment($order);
+        if (!defined('SEQR_REFUND_PAYMENT')) {
+            define('SEQR_REFUND_PAYMENT', TRUE);
+            $payment_gateway->refund_payment($order);
+        }
     }
 
     add_filter('woocommerce_order_actions', 'add_seqr_refund_action');

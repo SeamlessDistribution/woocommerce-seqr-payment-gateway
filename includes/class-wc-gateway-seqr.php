@@ -410,7 +410,8 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
             if ($result->resultCode == 0) {
                 $refundReference = wc_clean($result->ersReference);
                 add_post_meta($order->id, 'SEQR Refund Reference', $refundReference, true);
-                $order->add_order_note('Refunded');
+                $_POST['order_status'] = 'refunded';
+                $order->update_status('refunded');
             } else {
                 $order->add_order_note('Refund failed: ' . $result->resultDescription);
             }
