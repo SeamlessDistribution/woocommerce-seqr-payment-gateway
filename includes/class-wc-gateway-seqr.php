@@ -202,7 +202,7 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
         $order = new WC_Order($order_id);
         $payment_url = $order->get_checkout_payment_url(true);
         $detect = new Mobile_Detect();
-        if ($detect->isMobile()) {
+        if ($detect->isMobile() && !$detect->isTablet()) {
             $invoiceReference = get_post_meta($order->id, 'SEQR Invoice Reference', true);
             if ($invoiceReference) {
                 $payment_url = $this->mode . '://SEQR.SE/R' . $invoiceReference;
@@ -248,7 +248,7 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
                     header('HTTP/1.1 200 OK');
                     header('Content-Type: application/json; charset=utf-8');
                     $detect = new Mobile_Detect();
-                    if ($detect->isMobile()) {
+                    if ($detect->isMobile() && !$detect->isTablet()) {
                         wp_redirect($url);
                     } else {
                         $response =
