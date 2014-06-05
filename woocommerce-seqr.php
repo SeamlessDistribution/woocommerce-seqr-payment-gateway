@@ -28,18 +28,10 @@ function woocommerce_seqr_init()
     function add_seqr_refund_action($actions)
     {
         $order = new WC_Order($_REQUEST['post']);
-        switch ($order->status) {
-            case 'failed' :
-                break;
-            case 'refunded' :
-                break;
-            case 'cancelled' :
-                break;
-            default :
-                $paymentReference = get_post_meta($order->id, 'SEQR Payment Reference', true);
-                if ($paymentReference) {
-                    $actions['seqr_refund'] = __('SEQR Refund Payment', 'seqr');
-                }
+        $paymentReference = get_post_meta($order->id, 'SEQR Payment Reference', true);
+        $refundReference = get_post_meta($order->id, 'SEQR Refund Reference', true);
+        if ($paymentReference && !$refundReference) {
+            $actions['seqr_refund'] = __('SEQR Refund Payment', 'seqr');
         }
         return $actions;
     }
@@ -47,7 +39,7 @@ function woocommerce_seqr_init()
     function do_seqr_refund($order)
     {
         $payment_gateway = new WC_SEQR_Payment_Gateway();
-        return $payment_gateway->refund_payment($order);
+        $payment_gateway->refund_payment($order);
     }
 
     add_filter('woocommerce_order_actions', 'add_seqr_refund_action');
