@@ -1,6 +1,6 @@
 <?php
 
-require_once(dirname(dirname(dirname(dirname(__FILE__)))) . '/wp-load.php');
+require_once(realpath($_SERVER["DOCUMENT_ROOT"]) . '/wp-load.php');
 require_once('includes/phpqrcode.php');
 
 if (isset($_GET['order'])) {
