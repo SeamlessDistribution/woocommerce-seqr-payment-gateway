@@ -14,7 +14,7 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
         $this->method_title = __('SEQR', 'seqr');
         $this->has_fields = false;
         $this->order_button_text = __('Pay with SEQR', 'seqr');
-        $this->icon = apply_filters('woocommerce_seqr_icon', $this->plugin_url() . '/assets/logo.png');
+        $this->icon = apply_filters('woocommerce_seqr_icon', $this->plugin_url() . '/assets/seqr-badge-40.png');
         $this->javascript = $this->plugin_url() . '/assets/woocommerce-seqr.js';
         $this->qrcode = $this->plugin_url() . '/qrcode.php';
         $this->callback_url = WC()->api_request_url(get_class($this));
