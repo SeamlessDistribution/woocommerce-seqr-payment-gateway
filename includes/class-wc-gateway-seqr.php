@@ -175,7 +175,7 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
             }
         }
         if ($invoiceReference) {
-            $jsUrl = $this->javascript . '#!callbackUrl=' . urlencode($this->callback_url . '&order=' . $order_id);
+            $jsUrl = $this->javascript . '#!callbackUrl=' . urlencode($this->prepare_url($order_id));
             $qrUrl = $this->plugin_url() . '/qrcode.php?order=' . $order_id;
             echo '<script id="seqr_js" src="' . $jsUrl . '"></script>';
             echo '<p><img id="seqr_qr" src="' . $qrUrl . '" width="150" height="150"/></p>';
@@ -235,7 +235,7 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
                     }
                     switch ($order->status) {
                         case 'pending' :
-                            $url = $this->callback_url . '&order=' . urlencode($order->id);
+                            $url = $this->prepare_url($order->id);
                             break;
                         case 'failed' :
                             $url = $order->get_cancel_order_url();
@@ -376,7 +376,7 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
                     "currency" => $order->get_order_currency(),
                     "value" => $order->get_total()
                 ),
-            "backURL" => $this->callback_url . '&order=' . urlencode($order->id)
+            "backURL" => $this->prepare_url($order->id)
         );
 
         if ("no" == $this->poll) {
@@ -439,7 +439,6 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
 
     function soap_call($function_name, $params)
     {
-
         $params['context'] = array(
             'initiatorPrincipalId' => array(
                 'id' => $this->terminal_id,
@@ -455,7 +454,10 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
         $this->log('SOAP Response, ' . $function_name . ' : ' . json_encode($result));
 
         return $result->return;
-
     }
 
+    function prepare_url($order_id)
+    {
+        return $this->callback_url . (strpos($this->callback_url, '?') !== false ? '?' : '&') . 'order=' . $order_id;
+    }
 }
