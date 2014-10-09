@@ -458,6 +458,6 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
 
     function prepare_url($order_id)
     {
-        return $this->callback_url . (strpos($this->callback_url, '?') !== false ? '?' : '&') . 'order=' . $order_id;
+        return $this->callback_url . (strpos($this->callback_url, '?') === false ? '?' : '&') . 'order=' . $order_id;
     }
 }
