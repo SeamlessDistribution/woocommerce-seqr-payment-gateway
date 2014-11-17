@@ -13,7 +13,7 @@ Learn more about SEQR on www.seqr.com
 ### Plugin ###
 Plugin provide possibility for shop clients to select SEQR as payment method, and after order placement pay it via scanning QR code (or directly from your mobile device).  
 
-* SEQR as payment method on checkout page. 
+* SEQR as payment method on checkout page. In case of usage mobile device SEQR application will be opened automaticly by click to the payment button, otherwise QR code will be displayed.
  
 ![alt tag](/doc/WC-SEQR-Select.png)
 
@@ -21,10 +21,6 @@ Plugin provide possibility for shop clients to select SEQR as payment method, an
 
 ![alt tag](/doc/WC-SEQR-QR.png)
 
-* Payment from 
-
-![alt tag](/doc/WC-SEQR-Button.png)
- 
 ### Installation & Configuration ###
 ![alt tag](/doc/WC-SEQR-Settings.png)
 
@@ -41,8 +37,8 @@ Title is shown as option of payment method in checkout process.
 All properties are required and should be configured before enabling this payment method in production.
 
 ### Tested with ###
-* WooCommerce 3.9
-* WooCommerce 4.0
+* WordPress 3.9 + WooCommerce 
+* WordPress 4.0 + WooCommerce 
 
 ### Development & File structure ###
 
