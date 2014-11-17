@@ -37,8 +37,8 @@ Title is shown as option of payment method in checkout process.
 All properties are required and should be configured before enabling this payment method in production.
 
 ### Tested with ###
-* WordPress 3.9 + WooCommerce 
-* WordPress 4.0 + WooCommerce 
+* WordPress 3.9 + WooCommerce 2.1.0 
+* WordPress 4.0 + WooCommerce 2.2.4
 
 ### Development & File structure ###
 
