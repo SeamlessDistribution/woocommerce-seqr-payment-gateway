@@ -26,7 +26,7 @@ Plugin provide possibility for shop clients to select SEQR as payment method, an
 
 Plugin can be installed by copping all plugin files to the woocommerce directory.
 
-Plugin configuration properties available on Woocommerce administration page Extensions > Payments > SEQR.
+Plugin configuration properties available on Woocommerce administration page WooCommerce > Settings > Checkout > SEQR.
 
 Contact Seamless on integrations@seamless.se to get the right settings for the SOAP url, Terminal ID and Terminal Password. 
 
