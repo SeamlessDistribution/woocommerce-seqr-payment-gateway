@@ -376,11 +376,11 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
                     "currency" => $order->get_order_currency(),
                     "value" => $order->get_total()
                 ),
-            "backURL" => $this->prepare_url($order->id)
+            "backURL" => $this->callback_url;
         );
 
         if ("no" == $this->poll) {
-            $invoice['notificationUrl'] = $this->callback_url;
+            $invoice['notificationUrl'] = $this->prepare_url($order->id)
         }
 
         $params = array(
