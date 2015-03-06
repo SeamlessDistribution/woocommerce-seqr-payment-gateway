@@ -1,6 +1,8 @@
 <?php
 
-require_once(realpath($_SERVER["DOCUMENT_ROOT"]) . '/wp-load.php');
+$rootPath = substr(dirname(__FILE__), 0, strpos(dirname(__FILE__), 'wp-content'));
+
+require_once("$rootPath/wp-load.php");
 require_once('includes/phpqrcode.php');
 
 if (isset($_GET['order'])) {
