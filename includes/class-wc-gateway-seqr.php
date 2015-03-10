@@ -225,65 +225,57 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
 
     function process_callback()
     {
-        switch ($_SERVER['REQUEST_METHOD']) {
-            case 'GET' :
-                $order = new WC_Order($_GET['order']);
-                if ($order->id) {
-                    $invoiceReference = get_post_meta($order->id, 'SEQR Invoice Reference', true);
-                    if ('yes' == $this->poll) {
-                        $this->update_order_status($invoiceReference, $order);
-                    }
-                    switch ($order->status) {
-                        case 'pending' :
-                            $url = $this->prepare_url($order->id);
-                            break;
-                        case 'failed' :
-                            $url = $order->get_cancel_order_url();
-                            break;
-                        case 'cancelled' :
-                            $url = $order->get_cancel_order_url();
-                            break;
-                        default :
-                            $url = $order->get_checkout_order_received_url();
-                    }
-                    @ob_clean();
-                    header('HTTP/1.1 200 OK');
-                    $detect = new Mobile_Detect();
-                    if ($detect->isMobile() && !$detect->isTablet()) {
-                        wp_redirect($url);
-                    } else {
-                        $response =
-                            array(
-                                'status' => $order->status,
-                                'url' => $url,
-                                'poll_frequency' => $this->poll_frequency
-                            );
-                        header('Content-Type: application/json; charset=utf-8');
-                        echo json_encode($response);
-                        die();
-                    }
-                } else {
-                    return false;
-                }
-            case 'POST' :
-                $order = new WC_Order($_POST['clientInvoiceId']);
-                if ('pending' != $order->status || !isset($_POST['invoiceReference'])) {
-                    return false;
-                }
-                $invoiceReference = get_post_meta($order->id, 'SEQR Invoice Reference', true);
-                if ($invoiceReference == $_POST['invoiceReference']) {
-                    if (isset($_POST['msisdn'])) {
-                        add_post_meta($order->id, 'SEQR MSISDN', wc_clean($_POST['msisdn']), true);
-                    }
-                    $this->update_order_status($invoiceReference, $order);
-                    return true;
-                } else {
-                    return false;
-                }
-            default:
-                wp_die("Malformed request", "SEQR", array('response' => 400));
+        $order = new WC_Order($_GET['order']);
+        if (! $order->id) return false;
+
+        $invoiceReference = get_post_meta($order->id, 'SEQR Invoice Reference', true);
+
+        $isNotification = array_key_exists('notification', $_REQUEST);
+        $isBackUrl = array_key_exists('backurl', $_REQUEST);
+
+        if ($isNotification || $isBackUrl || 'yes' == $this->poll) $this->update_order_status($invoiceReference, $order);
+
+        switch ($order->status) {
+            case 'pending':
+                $url = $this->prepare_url($order->id);
                 break;
+            case 'failed':
+                $url = $order->get_cancel_order_url();
+                break;
+            case 'cancelled':
+                $url = $order->get_cancel_order_url();
+                break;
+            default:
+                $url = $order->get_checkout_order_received_url();
         }
+
+        // Process request if callback
+        if ($isNotification) {
+            $this->log("Notification call processing for order {$order->id} -> ref: {$invoiceReference}");
+            die();
+        }
+
+        // Process request back url
+        if ($isBackUrl) {
+            $this->log("Back call processing for order {$order->id} -> ref: {$invoiceReference}");
+            @ob_clean();
+            wp_redirect($url);
+            return true;
+        }
+
+        // Process browser callbacks
+        @ob_clean();
+        header('HTTP/1.1 200 OK');
+
+        $response = array(
+            'status' => $order->status,
+            'url' => $url,
+            'poll_frequency' => $this->poll_frequency
+        );
+
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode($response);
+        die();
     }
 
     function update_order_status($invoiceReference, &$order)
@@ -376,18 +368,11 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
                     "currency" => $order->get_order_currency(),
                     "value" => $order->get_total()
                 ),
-            "backURL" => $this->prepare_url($order->id)
+            "backURL" => $this->prepare_back_url($order->id),
+            "notificationUrl" => $this->prepare_notification_url($order->id)
         );
 
-        if ("no" == $this->poll) {
-            $invoice['notificationUrl'] = $this->callback_url;
-        }
-
-        $params = array(
-            "invoice" => $invoice
-        );
-        return $this->soap_call('sendInvoice', $params);
-
+        return $this->soap_call('sendInvoice', array("invoice" => $invoice));
     }
 
     function refund_payment($order)
@@ -459,5 +444,17 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
     function prepare_url($order_id)
     {
         return $this->callback_url . (strpos($this->callback_url, '?') === false ? '?' : '&') . 'order=' . $order_id;
+    }
+
+    function prepare_notification_url($order_id)
+    {
+        return $this->callback_url . (strpos($this->callback_url, '?') === false ? '?' : '&') .
+            'order=' . $order_id . '&notification=true';
+    }
+
+    function prepare_back_url($order_id)
+    {
+        return $this->callback_url . (strpos($this->callback_url, '?') === false ? '?' : '&') .
+            'order=' . $order_id . '&backurl=true';
     }
 }
