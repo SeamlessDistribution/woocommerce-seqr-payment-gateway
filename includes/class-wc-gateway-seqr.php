@@ -252,12 +252,12 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
         // Process request if callback
         if ($isNotification) {
             $this->log("Notification call processing for order {$order->id} -> ref: {$invoiceReference}");
-            return true;
+            die();
         }
 
         // Process request back url
         if ($isBackUrl) {
-            $this->log("Notification call processing for order {$order->id} -> ref: {$invoiceReference}");
+            $this->log("Back call processing for order {$order->id} -> ref: {$invoiceReference}");
             @ob_clean();
             wp_redirect($url);
             return true;
