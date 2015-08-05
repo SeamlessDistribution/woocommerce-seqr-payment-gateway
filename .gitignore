@@ -1,2 +1,37 @@
+*.po
 
+### JetBrains IDE's 
 *.iml
+.idea/
+*.ipr
+*.iws
+
+### OSX template
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+### vim template
+[._]*.s[a-w][a-z]
+[._]s[a-w][a-z]
+Session.vim
+.netrwhist
+
+### Eclipse template
+.metadata
+.settings/
+*.launch
+
+### Linux template
+*~
+
+# KDE directory preferences
+.directory
