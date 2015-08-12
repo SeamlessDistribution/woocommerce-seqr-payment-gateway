@@ -1,0 +1,191 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: WooCommerce SEQR Payment Gateway\n"
+"POT-Creation-Date: 2015-04-30 18:19+0100\n"
+"PO-Revision-Date: 2015-04-30 18:29+0100\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: sv_SE\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 1.7.5\n"
+"X-Poedit-Basepath: ..\n"
+"X-Poedit-SourceCharset: UTF-8\n"
+"X-Poedit-KeywordsList: __;_e;_n:1,2;_x:1,2c;_ex:1,2c;_nx:4c,1,2;esc_attr__;"
+"esc_attr_e;esc_attr_x:1,2c;esc_html__;esc_html_e;esc_html_x:1,2c;"
+"_n_noop:1,2;_nx_noop:3c,1,2;__ngettext_noop:1,2\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Poedit-SearchPath-0: .\n"
+"X-Poedit-SearchPathExcluded-0: *.js\n"
+
+#: includes/class-wc-gateway-seqr.php:14
+msgid "SEQR"
+msgstr "SEQR"
+
+#: includes/class-wc-gateway-seqr.php:16
+msgid "Pay with SEQR"
+msgstr "Betala med SEQR"
+
+#: includes/class-wc-gateway-seqr.php:63
+msgid "Enable/Disable"
+msgstr "Aktivera/avaktivera"
+
+#: includes/class-wc-gateway-seqr.php:65
+msgid "Enable SEQR Checkout"
+msgstr "Aktivera SEQR-betalning"
+
+#: includes/class-wc-gateway-seqr.php:69
+msgid "Title"
+msgstr "Titel"
+
+#: includes/class-wc-gateway-seqr.php:71
+msgid "This controls the title which the user sees during checkout."
+msgstr "Det här kontrollerar vilken titel kunden ser i kassan."
+
+#: includes/class-wc-gateway-seqr.php:72
+msgid "SEQR Mobile Payment"
+msgstr "SEQR mobil betalning"
+
+#: includes/class-wc-gateway-seqr.php:76
+msgid "Description"
+msgstr "Beskrivning"
+
+#: includes/class-wc-gateway-seqr.php:78
+msgid "This controls the description which the user sees during checkout."
+msgstr "Detta kontrollerar beskrivningen som användaren ser i kassan."
+
+#: includes/class-wc-gateway-seqr.php:79
+msgid "Pay securely with your mobile phone."
+msgstr "Betala säkert med mobilen."
+
+#: includes/class-wc-gateway-seqr.php:83
+msgid "WSDL URI"
+msgstr "WSDL URI"
+
+#: includes/class-wc-gateway-seqr.php:85
+msgid "URI of the WSDL file"
+msgstr "URI för WSDL-filen"
+
+#: includes/class-wc-gateway-seqr.php:90
+msgid "Terminal ID"
+msgstr "Terminal-ID"
+
+#: includes/class-wc-gateway-seqr.php:92
+msgid "Terminal ID."
+msgstr "Terminal-ID."
+
+#: includes/class-wc-gateway-seqr.php:97
+msgid "Terminal Password"
+msgstr "Terminal-lösenord"
+
+#: includes/class-wc-gateway-seqr.php:99
+msgid "Terminal Password."
+msgstr "Terminal-lösenord."
+
+#: includes/class-wc-gateway-seqr.php:104
+msgid "Mode"
+msgstr "Läge"
+
+#: includes/class-wc-gateway-seqr.php:106
+msgid "Selecting the mode affects which version of the SEQR app is triggered."
+msgstr "Styr vilken version av SEQR-appen som används."
+
+#: includes/class-wc-gateway-seqr.php:109
+msgid "Demo"
+msgstr "Demo"
+
+#: includes/class-wc-gateway-seqr.php:110
+msgid "Debug"
+msgstr "Debug"
+
+#: includes/class-wc-gateway-seqr.php:111
+msgid "Production"
+msgstr "Produktion"
+
+#: includes/class-wc-gateway-seqr.php:116
+msgid "Poll Status"
+msgstr "Pool Status"
+
+#: includes/class-wc-gateway-seqr.php:118
+msgid "Enable polling"
+msgstr "Akitiver polling"
+
+#: includes/class-wc-gateway-seqr.php:119
+#, php-format
+msgid ""
+"Enable this option if callbacks from SEQR to <code>%s</code> are not "
+"possible."
+msgstr ""
+"Aktivera det här alternativet om callbacks från SEQR till <code>%s</code> "
+"inte är möjliga."
+
+#: includes/class-wc-gateway-seqr.php:124
+msgid "Poll Frequency"
+msgstr "Poll-frekvens"
+
+#: includes/class-wc-gateway-seqr.php:126
+msgid "milliseconds"
+msgstr "millisekunder"
+
+#: includes/class-wc-gateway-seqr.php:127
+msgid "How often should the checkout page check the payment status."
+msgstr "Hur ofta bör kassasidan kontrollera betalningsstatus."
+
+#: includes/class-wc-gateway-seqr.php:132
+msgid "Debug Log"
+msgstr "Debugg-logg"
+
+#: includes/class-wc-gateway-seqr.php:134
+msgid "Enable logging"
+msgstr "Aktivera loggning"
+
+#: includes/class-wc-gateway-seqr.php:135
+#, php-format
+msgid ""
+"Log SEQR events, such as callback requests, inside <code>woocommerce/logs/"
+"seqr-%s.txt</code>."
+msgstr ""
+"Logga SEQR-händelser, såsom callback-requests, i <code>woocommerce/logs/"
+"seqr-%s.txt</code> ."
+
+#: includes/class-wc-gateway-seqr.php:144
+msgid "SEQR Payment Gateway"
+msgstr "SEQR-betalningar"
+
+#: includes/class-wc-gateway-seqr.php:145
+msgid "SEQR is the premiere solution for mobile payments"
+msgstr "SEQR är den bästa lösningen för mobila betalningar"
+
+#: includes/class-wc-gateway-seqr.php:173
+#: includes/class-wc-gateway-seqr.php:216
+msgid "SEQR Send invoice failed: "
+msgstr "SEQR kunde inte skicka faktura: "
+
+#: includes/class-wc-gateway-seqr.php:174
+msgid "SEQR Payment Failed"
+msgstr "SEQR-betalning misslyckades"
+
+#: includes/class-wc-gateway-seqr.php:343
+msgid "Cart Discount:"
+msgstr "Varukorgsrabatt:"
+
+#: includes/class-wc-gateway-seqr.php:347
+msgid "Shipping:"
+msgstr "Frakt:"
+
+#: includes/class-wc-gateway-seqr.php:351
+msgid "Order Discount:"
+msgstr "Orderrabatt:"
+
+#: includes/class-wc-gateway-seqr.php:387
+msgid "Refund for order "
+msgstr "Återbetalning för order "
+
+#: includes/class-wc-gateway-seqr.php:403
+msgid "SEQR Refund failed: "
+msgstr "Återbetalning med SEQR misslyckades"
+
+#: woocommerce-seqr.php:48
+msgid "SEQR Refund Payment"
+msgstr "SEQR återbetalning"

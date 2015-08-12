@@ -8,7 +8,11 @@ Author URI: http://www.seamless.se
 Version: 0.1.0
 License: Apache License, Version 2.0 - http://www.apache.org/licenses/LICENSE-2.0.html
 */
+function woocommerce_seqr_load_plugin_textdomain() {
+  load_plugin_textdomain( 'seqr', FALSE, basename( dirname( __FILE__ ) ) . '/languages/' );
+}
 
+add_action( 'plugins_loaded', 'woocommerce_seqr_load_plugin_textdomain' );
 function woocommerce_seqr_init()
 {
     if (class_exists('WC_Payment_Gateway')) {
