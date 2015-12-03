@@ -304,7 +304,7 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
     {
         $invoiceRow =
             array(
-                "itemDescription" => $label,
+                "itemDescription" => html_entity_decode($label),
                 "itemTotalAmount" =>
                     array(
                         "currency" => $currency,
