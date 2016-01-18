@@ -30,7 +30,6 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
         $this->poll = $this->get_option('poll');
         $this->poll_frequency = intval($this->get_option('poll_frequency', 1000));
         $this->debug = $this->get_option('debug');
-        $this->mode = $this->get_option('mode');
 
         $this->log = new WC_Logger();
 
@@ -98,18 +97,6 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
                 'type' => 'password',
                 'description' => __('Terminal Password.', 'seqr'),
                 'default' => '',
-                'desc_tip' => true
-            ),
-            'mode' => array(
-                'title' => __('Mode', 'seqr'),
-                'type' => 'select',
-                'description' => __('Selecting the mode affects which version of the SEQR app is triggered.', 'seqr'),
-                'default' => 'seqr-demo',
-                'options' => array(
-                    'seqr-demo' => __('Demo', 'seqr'),
-                    'seqr-debug' => __('Debug', 'seqr'),
-                    'seqr' => __('Production', 'seqr')
-                ),
                 'desc_tip' => true
             ),
             'poll' => array(
@@ -205,13 +192,13 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
         if ($detect->isMobile() && !$detect->isTablet()) {
             $invoiceReference = get_post_meta($order->id, 'SEQR Invoice Reference', true);
             if ($invoiceReference) {
-                $payment_url = $this->mode . '://SEQR.SE/R' . $invoiceReference;
+                $payment_url = 'seqr://SEQR.SE/R' . $invoiceReference;
             } else {
                 $result = $this->send_invoice($order);
                 if ($result->resultCode == 0) {
                     $invoiceReference = wc_clean($result->invoiceReference);
                     add_post_meta($order->id, 'SEQR Invoice Reference', $invoiceReference, true);
-                    $payment_url = $this->mode . '://SEQR.SE/R' . $invoiceReference;
+                    $payment_url = 'seqr://SEQR.SE/R' . $invoiceReference;
                 } else {
                     $order->add_order_note(__('SEQR Send invoice failed: ', 'seqr') . __($result->resultDescription, 'seqr'));
                 }

@@ -83,14 +83,6 @@ msgstr "Terminal-lösenord"
 msgid "Terminal Password."
 msgstr "Terminal-lösenord."
 
-#: includes/class-wc-gateway-seqr.php:104
-msgid "Mode"
-msgstr "Läge"
-
-#: includes/class-wc-gateway-seqr.php:106
-msgid "Selecting the mode affects which version of the SEQR app is triggered."
-msgstr "Styr vilken version av SEQR-appen som används."
-
 #: includes/class-wc-gateway-seqr.php:109
 msgid "Demo"
 msgstr "Demo"
