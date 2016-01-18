@@ -29,6 +29,8 @@ Session.vim
 .metadata
 .settings/
 *.launch
+.project
+.buildpath
 
 ### Linux template
 *~
