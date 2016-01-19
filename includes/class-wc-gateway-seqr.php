@@ -30,7 +30,16 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
         $this->poll = $this->get_option('poll');
         $this->poll_frequency = intval($this->get_option('poll_frequency', 1000));
         $this->debug = $this->get_option('debug');
-        $this->mode = $this->get_option('mode');
+
+        // Enable partial refunds for woocommerce 2.2 and newer
+        global $woocommerce;
+        $this->partialRefundsEnabled = version_compare($woocommerce->version, '2.2', ">=");
+        if ($this->partialRefundsEnabled) {
+        	$this->supports = array(
+        			'products',
+        			'refunds'
+        	);
+        }
 
         $this->log = new WC_Logger();
 
@@ -98,18 +107,6 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
                 'type' => 'password',
                 'description' => __('Terminal Password.', 'seqr'),
                 'default' => '',
-                'desc_tip' => true
-            ),
-            'mode' => array(
-                'title' => __('Mode', 'seqr'),
-                'type' => 'select',
-                'description' => __('Selecting the mode affects which version of the SEQR app is triggered.', 'seqr'),
-                'default' => 'seqr-demo',
-                'options' => array(
-                    'seqr-demo' => __('Demo', 'seqr'),
-                    'seqr-debug' => __('Debug', 'seqr'),
-                    'seqr' => __('Production', 'seqr')
-                ),
                 'desc_tip' => true
             ),
             'poll' => array(
@@ -205,13 +202,13 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
         if ($detect->isMobile() && !$detect->isTablet()) {
             $invoiceReference = get_post_meta($order->id, 'SEQR Invoice Reference', true);
             if ($invoiceReference) {
-                $payment_url = $this->mode . '://SEQR.SE/R' . $invoiceReference;
+                $payment_url = 'seqr://SEQR.SE/R' . $invoiceReference;
             } else {
                 $result = $this->send_invoice($order);
                 if ($result->resultCode == 0) {
                     $invoiceReference = wc_clean($result->invoiceReference);
                     add_post_meta($order->id, 'SEQR Invoice Reference', $invoiceReference, true);
-                    $payment_url = $this->mode . '://SEQR.SE/R' . $invoiceReference;
+                    $payment_url = 'seqr://SEQR.SE/R' . $invoiceReference;
                 } else {
                     $order->add_order_note(__('SEQR Send invoice failed: ', 'seqr') . __($result->resultDescription, 'seqr'));
                 }
@@ -278,6 +275,27 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
         die();
     }
 
+    /**
+     * Process refund.
+     *
+     * @return bool|WP_Error True or false based on success, or a WP_Error object.
+     */
+    public function process_refund( $order_id, $amount = null, $reason = '' ) {
+    	$order = new WC_Order($order_id);
+
+    	$ersReference = get_post_meta($order->id, 'SEQR Payment Reference', true);
+
+    	if ($ersReference) {
+    		$result = $this->refund_payment($order, $amount);
+    	}
+
+    	if ($result && $result->resultCode == 0) {
+    		return true;
+    	}
+
+    	return false;
+    }
+    
     function update_order_status($invoiceReference, &$order)
     {
         $result = $this->get_payment_status($invoiceReference);
@@ -375,12 +393,32 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
         return $this->soap_call('sendInvoice', array("invoice" => $invoice));
     }
 
-    function refund_payment($order)
+    function refund_payment($order, $amount)
     {
+    	// If there is no amount passed, this is full refund from actions menu (old way).
+    	if (!$amount) {
+    		if ($this->partialRefundsEnabled) {
+    			$amount = $order->get_total() - $order->get_total_refunded();
+    		} else {
+    			$amount = $order->get_total();
+    		}
+    	}
+
         $paymentReference = get_post_meta($order->id, 'SEQR Payment Reference', true);
         $refundReference = get_post_meta($order->id, 'SEQR Refund Reference', true);
-        if ($paymentReference && !$refundReference) {
+
+        // Check if fully refunded.
+        if ($this->partialRefundsEnabled) {
+        	// Can be equal to zero, because total_refunded is changed (locked) before processing.
+        	$canDoRefund = ($order->get_total() - $order->get_total_refunded()) >= 0;
+        } else {
+        	$canDoRefund = !$refundReference;
+        }
+
+        // Check if fully refunded.
+        if ($paymentReference && $canDoRefund) {
             $current_user = wp_get_current_user();
+
             $params = array(
                 "ersReference" => $paymentReference,
                 "invoice" => array(
@@ -389,7 +427,7 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
                     "totalAmount" =>
                         array(
                             "currency" => $order->get_order_currency(),
-                            "value" => $order->get_total()
+                            "value" => $amount
                         )
                 )
             );
@@ -397,11 +435,14 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
             if ($result->resultCode == 0) {
                 $refundReference = wc_clean($result->ersReference);
                 add_post_meta($order->id, 'SEQR Refund Reference', $refundReference, true);
-                $_POST['order_status'] = 'refunded';
-                $order->update_status('refunded');
+                if (!$this->partialRefundsEnabled || $order->get_total() - $order->get_total_refunded() == $amount) {
+                	$_POST['order_status'] = 'refunded';
+                	$order->update_status('refunded');
+                }
             } else {
                 $order->add_order_note(__('SEQR Refund failed: ', 'seqr') . __($result->resultDescription, 'seqr'));
             }
+            return $result;
         }
     }
 

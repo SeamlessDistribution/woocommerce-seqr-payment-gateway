@@ -39,6 +39,7 @@ All properties are required and should be configured before enabling this paymen
 ### Tested with ###
 * WordPress 3.9 + WooCommerce 2.1.0 
 * WordPress 4.0 + WooCommerce 2.2.4
+* Wordpress 4.4 + WooCommerce 2.4.13
 
 ### Development & File structure ###
 

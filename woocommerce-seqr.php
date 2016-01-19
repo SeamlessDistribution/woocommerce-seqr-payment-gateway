@@ -5,7 +5,7 @@ Plugin URI: http://developer.seqr.com/woocommerce
 Description: SEQR Payment gateway for WooCommerce
 Author: Seamless
 Author URI: http://www.seamless.se
-Version: 0.1.0
+Version: 0.1.1
 License: Apache License, Version 2.0 - http://www.apache.org/licenses/LICENSE-2.0.html
 */
 function woocommerce_seqr_load_plugin_textdomain() {
@@ -45,7 +45,7 @@ function woocommerce_seqr_init()
         $payment_gateway = new WC_SEQR_Payment_Gateway();
         if (!defined('SEQR_REFUND_PAYMENT')) {
             define('SEQR_REFUND_PAYMENT', TRUE);
-            $payment_gateway->refund_payment($order);
+            $payment_gateway->refund_payment($order, NULL);
         }
     }
 
