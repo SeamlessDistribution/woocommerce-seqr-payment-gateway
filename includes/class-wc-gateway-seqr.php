@@ -16,7 +16,6 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
         $this->order_button_text = __('Pay with SEQR', 'seqr');
         $this->icon = apply_filters('woocommerce_seqr_icon', $this->plugin_url() . '/assets/seqr-badge-40.png');
         $this->javascript = $this->plugin_url() . '/assets/woocommerce-seqr.js';
-        $this->qrcode = $this->plugin_url() . '/qrcode.php';
         $this->callback_url = WC()->api_request_url(get_class($this));
 
         $this->init_form_fields();
@@ -153,29 +152,44 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
         if ($this ->description) echo wpautop(wptexturize($this->description));
     }
 
+    public function getWebPluginUrl($qrCode, $checkStatusUrl) {
+        return 'https://cdn.seqr.com/webshop-plugin/js/seqrShop.js' .
+        '#!' .
+        '&injectCSS=true&statusCallback=seqrStatusUpdated&' .
+        'invoiceQRCode=' . $qrCode . '&' .
+        'statusURL=' . $checkStatusUrl;
+    }
+    
     /**
      * Receipt Page
      **/
     function receipt_page($order_id)
     {
         $order = new WC_Order($order_id);
-        $invoiceReference = get_post_meta($order->id, 'SEQR Invoice Reference', true);
-        if (!$invoiceReference) {
-            $result = $this->send_invoice($order);
-            if ($result->resultCode == 0) {
-                $invoiceReference = wc_clean($result->invoiceReference);
-                add_post_meta($order->id, 'SEQR Invoice Reference', $invoiceReference, true);
-                add_post_meta($order->id, 'SEQR Invoice QR Code', $result->invoiceQRCode, true);
-            } else {
-                $order->add_order_note(__('SEQR Send invoice failed: ', 'seqr') . __($result->resultDescription, 'seqr'));
-                echo '<h3>' . __('SEQR Payment Failed', 'seqr') . '</h3><p><pre>' . __($result->resultDescription, 'seqr') . '</pre></p>';
-            }
-        }
+
+        // Clear data from previous (canceled? changed?) invoice and generate new with correct amount
+        delete_post_meta($order->id, 'SEQR Invoice Reference');
+        delete_post_meta($order->id, 'SEQR Invoice QR Code');
+
+        $result = $this->send_invoice($order);
+		if ($result->resultCode == 0) {
+			$invoiceReference = wc_clean($result->invoiceReference);
+			add_post_meta ($order->id, 'SEQR Invoice Reference', $invoiceReference, true);
+			add_post_meta ($order->id, 'SEQR Invoice QR Code', $result->invoiceQRCode, true);
+		} else {
+			$order->add_order_note(__('SEQR Send invoice failed: ', 'seqr') . __($result->resultDescription, 'seqr'));
+			echo '<h3>' . __('SEQR Payment Failed', 'seqr') . '</h3><p><pre>' . __($result->resultDescription, 'seqr') . '</pre></p>';
+		}
+
         if ($invoiceReference) {
             $jsUrl = $this->javascript . '#!callbackUrl=' . urlencode($this->prepare_url($order_id));
-            $qrUrl = $this->plugin_url() . '/qrcode.php?order=' . $order_id;
             echo '<script id="seqr_js" src="' . $jsUrl . '"></script>';
-            echo '<p><img id="seqr_qr" src="' . $qrUrl . '" width="150" height="150"/></p>';
+
+            $qrCode = get_post_meta($order_id, 'SEQR Invoice QR Code', true);
+            $webPluginUrl = $this->getWebPluginUrl($qrCode, urlencode($this->prepare_url($order_id)));
+            echo '<div class="seqr-box">
+				    <script id="seqrShop" src="' . $webPluginUrl . '" type="text/javascript"></script>
+				</div>';
         }
     }
 
