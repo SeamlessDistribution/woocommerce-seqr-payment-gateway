@@ -2,8 +2,6 @@
 
 if (!defined('ABSPATH')) exit; // Exit if accessed directly
 
-require_once 'class-mobile-detect.php';
-
 class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
 {
 
@@ -211,26 +209,10 @@ class WC_SEQR_Payment_Gateway extends WC_Payment_Gateway
     function process_payment($order_id)
     {
         $order = new WC_Order($order_id);
-        $payment_url = $order->get_checkout_payment_url(true);
-        $detect = new Mobile_Detect();
-        if ($detect->isMobile() && !$detect->isTablet()) {
-            $invoiceReference = get_post_meta($order->id, 'SEQR Invoice Reference', true);
-            if ($invoiceReference) {
-                $payment_url = 'seqr://SEQR.SE/R' . $invoiceReference;
-            } else {
-                $result = $this->send_invoice($order);
-                if ($result->resultCode == 0) {
-                    $invoiceReference = wc_clean($result->invoiceReference);
-                    add_post_meta($order->id, 'SEQR Invoice Reference', $invoiceReference, true);
-                    $payment_url = 'seqr://SEQR.SE/R' . $invoiceReference;
-                } else {
-                    $order->add_order_note(__('SEQR Send invoice failed: ', 'seqr') . __($result->resultDescription, 'seqr'));
-                }
-            }
-        }
+
         return array(
             'result' => 'success',
-            'redirect' => $payment_url
+            'redirect' => $order->get_checkout_payment_url(true)
         );
     }
 
