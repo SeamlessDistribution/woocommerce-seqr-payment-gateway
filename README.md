@@ -24,7 +24,7 @@ Plugin provide possibility for shop clients to select SEQR as payment method, an
 ### Installation & Configuration ###
 ![alt tag](/doc/WC-SEQR-Settings.png)
 
-Plugin can be installed by copping all plugin files to the woocommerce directory. Plugin directory name should be `woocommerce-seqr`. In case of package installation archive name should be 'woocommerce-seqr.zip'.  
+Plugin can be installed by copping all plugin files to the woocommerce directory (`/wp-content/plugins/woocommerce-seqr`). Plugin directory name should be `woocommerce-seqr`. In case of package installation archive name should be `woocommerce-seqr.zip`.  
 
 Plugin configuration properties available on Woocommerce administration page WooCommerce > Settings > Checkout > SEQR.
 
